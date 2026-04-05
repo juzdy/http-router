@@ -11,6 +11,7 @@ A robust, PSR-compliant HTTP router middleware for the JUZDY framework. Provides
 - **Middleware Pipeline**: Per-route and per-group middleware with configurable execution order
 - **Dependency Injection**: Automatic dependency resolution for handlers and middleware
 - **Method Chaining**: Fluent API for route and middleware configuration
+- **Config-Based Registration**: Register routes from `http-router` config using nested path nodes and verb keys
 - **Event Dispatching**: Router initialization events for custom hooks
 
 ## Installation
@@ -139,6 +140,81 @@ $router->group('/admin', function (RouterInterface $router) {
 })
 ->withMiddleware(AdminAuthMiddleware::class);
 ```
+
+## Configuration-Based Route Registration
+
+Routes are loaded from the `http-router` config key and processed by `RouteConfigProcessor` during `Package::boot()`.
+
+Think of the structure as a tree of path nodes.
+
+Top-level rule:
+
+- keys that start with `/` are treated as route path nodes
+
+Each path node supports these keys:
+
+- `middleware`: middleware list for that node scope
+- HTTP verbs: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` (case-insensitive)
+- child path nodes: nested keys that also start with `/`
+
+Handler value forms:
+
+- shorthand: `'/health' => HealthHandler::class` (registers `GET /health`)
+- verb string: `'GET' => PostListHandler::class`
+- verb object: `'POST' => ['handler' => CreatePostHandler::class, 'middleware' => [AuthMiddleware::class]]`
+
+Full example:
+
+```php
+'http-router' => [
+    '/health' => HealthHandler::class,
+
+    '/posts' => [
+        'GET' => PostListHandler::class,
+        'POST' => [
+            'handler' => CreatePostHandler::class,
+            'middleware' => [AuthMiddleware::class],
+        ],
+    ],
+
+    '/posts/{id}' => [
+        'middleware' => [LogMiddleware::class],
+        'GET' => PostDetailHandler::class,
+        'PATCH' => [
+            'handler' => UpdatePostHandler::class,
+            'middleware' => [AuthMiddleware::class],
+        ],
+        'DELETE' => [
+            'handler' => DeletePostHandler::class,
+            'middleware' => [AuthMiddleware::class],
+        ],
+    ],
+
+    '/api' => [
+        'middleware' => [LogMiddleware::class],
+        '/me' => [
+            'GET' => ProfileHandler::class,
+        ],
+    ],
+]
+```
+
+How nested paths resolve:
+
+- parent `'/api'` + child `'/me'` becomes route path `'/api/me'`
+
+Middleware inheritance order:
+
+- group middleware
+- node middleware (`middleware` at the current path)
+- verb middleware (`middleware` inside a verb definition)
+
+Validation notes:
+
+- non-path keys at root level are ignored
+- verb keys are matched case-insensitively (recommended style: uppercase)
+- verb definitions must be either a string handler or an array containing `handler`
+- invalid node shapes throw runtime exceptions during config processing
 
 ## Handler Types
 
@@ -316,6 +392,8 @@ Each middleware can:
 - Modify the response before returning
 - Delegate to the next middleware via `$handler->handle($request)`
 
+The route endpoint is resolved before the middleware chain is assembled. That means the same pipeline behavior applies whether the route uses a PSR-15 request handler, a callable, or a string handler resolved from the container, and any middleware added during handler resolution is included in the same request flow.
+
 ## Events
 
 The router fires events during its lifecycle:
@@ -346,6 +424,12 @@ The package requires:
 ## Configuration
 
 Configuration is typically defined in the parent application. The router is automatically registered with the middleware stack at priority `PHP_INT_MAX - 200` to execute late in the pipeline.
+
+When changing package behavior, keep `README.md` aligned with:
+
+- router public API (`RouterInterface`, `Router`)
+- config schema (`RouteConfigProcessor`, `etc/config/config.php`)
+- handler/middleware execution semantics
 
 ## Example: Complete Application
 
@@ -388,18 +472,51 @@ public function boot(AppInterface $app): void {
 
 ## Testing
 
-Routes can be tested by:
+This package includes a comprehensive Pest test suite covering:
 
-1. Creating a request with the desired method and path
-2. Matching the request against registered routes
-3. Asserting the handler or response
+- **Router behavior**: route registration, dispatch, middleware execution
+- **Route matching**: exact paths, parameterized paths, method matching
+- **Handler resolution**: callables, string identifiers, RequestHandlerInterface
+- **Middleware pipeline**: execution order, attachment, resolution
+- **Error handling**: invalid handlers, middleware validation, unmatched routes
+- **Integration scenarios**: multiple routes, nested groups, parameter extraction
 
-```php
-$request = $this->createServerRequest('GET', '/users/123');
-$response = $router->dispatch($request);
+### Running Tests
 
-$this->assertEquals(200, $response->getStatusCode());
+```bash
+# Run all tests
+composer test
+
+# Run specific test file
+vendor/bin/pest tests/RouterTest.php
+
+# Run with coverage report
+composer test:coverage
 ```
+
+Coverage best-practice scope for this package excludes demo/example code and
+interface/contract-only files, so the reported percentage reflects runtime
+router behavior rather than scaffolding artifacts.
+
+### Test Organization
+
+Tests are in `tests/` directory:
+- `RouterTest.php` - Router registration, dispatch, middleware
+- `RouteTest.php` - Route matching, configuration, handling
+- `FactoriesTest.php` - Handler/middleware/route factories
+- `PackageTest.php` - Package configuration and boot
+
+### Writing Tests
+
+When contributing or modifying router code:
+
+1. Include positive tests (valid behavior)
+2. Include negative tests (error cases, invalid input)
+3. Follow the test structure in existing test files
+4. Use mocks/stubs for dependencies
+5. Test both happy path and edge cases
+
+Refer to `.github/instructions/juzdy-http-router-tests.instructions.md` for detailed test requirements.
 
 ## Troubleshooting
 

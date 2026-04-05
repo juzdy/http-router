@@ -26,8 +26,18 @@
             "Juzdy\\Http\\Router\\": "src/"
         }
     },
+    "require-dev": {
+        "pestphp/pest": "^2.0"
+    },
     "autoload-dev": {
-        "psr-4": {}
+        "psr-4": {
+            "Juzdy\\Http\\Router\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "@php ../../../vendor/bin/pest --configuration=pest.xml",
+        "test:watch": "@php ../../../vendor/bin/pest --configuration=pest.xml --watch",
+        "test:coverage": "@php ../../../vendor/bin/pest --configuration=pest.xml --coverage"
     },
     "extra": {
         "juzdy": {

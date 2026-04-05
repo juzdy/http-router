@@ -8,7 +8,6 @@ use Psr\Http\Server\MiddlewareInterface;
 use Juzdy\Config\ConfigInterface;
 use Juzdy\Container\Contract\Lifecycle\SharedInterface;
 use Juzdy\Http\Router\Exception\RuntimeException;
-use Juzdy\Http\Router\Proxy\GroupedRouter;
 use Juzdy\Http\Router\Route\RouteFactory;
 use Juzdy\Http\Router\Route\RouteInterface;
 use Traversable;

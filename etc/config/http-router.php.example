@@ -1,0 +1,66 @@
+<?php
+use Juzdy\Http\Router\Example\Handler\CreatePostHandler;
+use Juzdy\Http\Router\Example\Handler\DeletePostHandler;
+use Juzdy\Http\Router\Example\Handler\HealthHandler;
+use Juzdy\Http\Router\Example\Handler\PostDetailHandler;
+use Juzdy\Http\Router\Example\Handler\PostListHandler;
+use Juzdy\Http\Router\Example\Handler\ProfileHandler;
+use Juzdy\Http\Router\Example\Handler\UpdatePostHandler;
+use Juzdy\Http\Router\Example\Middleware\AuthMiddleware;
+use Juzdy\Http\Router\Example\Middleware\LogMiddleware;
+
+// This is an example configuration file for the HTTP Router package. You can copy this to your project's config directory and modify it as needed.
+
+return [
+
+    'http-router' => [
+
+        // -----------------------------------------------------------------------
+        // Shorthand: string value means GET-only handler
+        // -----------------------------------------------------------------------
+        '/_example/health' => HealthHandler::class,
+
+        // -----------------------------------------------------------------------
+        // Multiple methods on one path.
+        // POST has per-method middleware; GET has none.
+        // -----------------------------------------------------------------------
+        '/_example/posts' => [
+            'GET'  => PostListHandler::class,
+            'POST' => [
+                'handler'    => CreatePostHandler::class,
+                'middleware' => [AuthMiddleware::class],
+            ],
+        ],
+
+        // -----------------------------------------------------------------------
+        // Path-level middleware applies to all methods on this path.
+        // Per-method middleware is merged on top.
+        // -----------------------------------------------------------------------
+        '/_example/posts/{id}' => [
+            'middleware' => [LogMiddleware::class],
+            'GET'    => PostDetailHandler::class,
+            'PATCH'  => [
+                'handler'    => UpdatePostHandler::class,
+                'middleware' => [AuthMiddleware::class],
+            ],
+            'DELETE' => [
+                'handler'    => DeletePostHandler::class,
+                'middleware' => [AuthMiddleware::class],
+            ],
+        ],
+
+        // -----------------------------------------------------------------------
+        // Group: child paths inherit group middleware.
+        // ProfileHandler is an invokable callable class (resolved by container,
+        // executed via DiInvoker with per-method dependency injection).
+        // -----------------------------------------------------------------------
+        '/_example/api' => [
+            'middleware' => [LogMiddleware::class],
+            '/me' => [
+                'GET' => ProfileHandler::class,
+            ],
+        ],
+
+    ],
+
+];

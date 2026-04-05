@@ -7,24 +7,24 @@
 namespace Juzdy\Http\Router\Attribute;
 
 use Attribute;
-use Juzdy\Container\Attribute\AttributeApplicableInterface;
+use Traversable;
+use Psr\Http\Server\MiddlewareInterface;
 
 #[Attribute(Attribute::TARGET_CLASS)]
-class WithMiddleware implements AttributeApplicableInterface
+class WithMiddleware
 {
-    /**
-     * @param string|array $middleware The middleware or middlewares to apply to the route
-     * @param int $priority The priority of the middleware (lower numbers run first)
-     */
+    
     public function __construct(
-        public string|array $middleware,
-        public int $priority = 0
+        private array $middleware
     ) {}
 
-    public function apply(object $instance): void
+    public function getMiddleware(): Traversable
     {
-        if (method_exists($instance, 'withMiddleware')) {
-            $instance->withMiddleware($this->priority, ...(is_array($this->middleware) ? $this->middleware : [$this->middleware]));
+        foreach ($this->middleware as $middleware) {
+            if (!is_string($middleware) && !is_a($middleware, MiddlewareInterface::class, true)) {
+                throw new \InvalidArgumentException("Middleware must be a class name or an instance of MiddlewareInterface");
+            }
+            yield $middleware;
         }
     }
 }

@@ -1,6 +1,7 @@
 <?php
 namespace Juzdy\Http\Router\Route;
 
+use Juzdy\Http\Router\Exception\RuntimeException;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
@@ -23,6 +24,12 @@ class HandlerFactory
      */
     public function createHandler(string $handler): RequestHandlerInterface|callable
     {
-        return $this->container->get($handler);
+        $handler = $this->container->get($handler);
+        
+        if (!$handler instanceof RequestHandlerInterface && !is_callable($handler)) {
+            throw new RuntimeException(_("Handler string identifier did not resolve to a valid request handler instance or callable."));
+        }
+
+        return $handler;
     }
 }

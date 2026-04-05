@@ -5,19 +5,23 @@ namespace Juzdy\Http\Router;
 use Juzdy\App\AppInterface;
 use Juzdy\Config\ConfigInterface;
 use Juzdy\Container\Binder\BindingManager;
-use Juzdy\EventBus\EventDispatcherInterface;
+use Juzdy\Http\Router\Config\RouteConfigProcessor;
 use Juzdy\Http\Router\Event\RouterInitialized;
-use Juzdy\Http\Router\Example\CallableRequestHandler;
-use Juzdy\Http\Router\Example\Event\TestEvent;
-use Juzdy\Http\Router\Example\TestRequestHandler;
+use Juzdy\Http\Router\Route\Route;
+use Juzdy\Http\Router\Route\RouteInterface;
 
 class Package extends \Juzdy\App\PackageProvider\Package
 {
+    private const CONFIG_KEY = 'http-router';
+
+    private ?ConfigInterface $config = null;
+
     /**
      * {@inheritDoc}
      */
     public function configure(ConfigInterface $config): void
     {
+        $this->config = $config;
     }
 
     /**
@@ -26,82 +30,62 @@ class Package extends \Juzdy\App\PackageProvider\Package
     public function boot(AppInterface $app): void
     {
         $this->bindings($app);
-        
-        //$this->registerRoutesExample($app(RouterInterface::class));
+
+        $this->registerConfiguredRoutes($app);
+
+        $this->registerExampleRoutes($app);
 
         $app->withMiddleware(PHP_INT_MAX - 200, RouterInterface::class);
-        
-        $routerInitializedEvent = $app(RouterInitialized::class);
-        $routerInitializedEvent->fire();
-        
-    }
 
-    private function bindings(AppInterface $app): void
-    {
-        $app(BindingManager::class)
-        ->bind(RouterInterface::class, Router::class);
+        $app(RouterInitialized::class)->fire();
     }
 
     /**
-     * Register routes Example:
+     * Registers bindings for the router package.
      *
-     * @param RouterInterface $router The router instance
-     */    
-    private function registerRoutesExample(RouterInterface $router): void
+     * @param AppInterface $app The application instance.
+     */
+    private function bindings(AppInterface $app): void
     {
-        /**
-         * Basic Route Example:
-         */
-        $router->get('/_demo_/', function () {
-            return 'Hello, World from /_demo_!';
-        })
-            ->withMiddleware(
-                new class implements \Psr\Http\Server\MiddlewareInterface {
-                    public function process(\Psr\Http\Message\ServerRequestInterface $request, \Psr\Http\Server\RequestHandlerInterface $handler): \Psr\Http\Message\ResponseInterface
-                    {
-                        echo "Middleware for route \"_demo_\" executed.\n";
-                        return $handler->handle($request)
-                            ->withHeader('X-Demo-Middleware', 'This is a demo middleware for /_demo_');
-                    }
-                }
-            )
-        ;
+        $app(BindingManager::class)
+            ->bindMany([
+                RouterInterface::class => Router::class,
+                RouteInterface::class => Route::class
+            ]);
+    }
 
-        /**
-         * Group Route Example:
-         */
-        $router->group('/_demo_', function (RouterInterface $router) {
+    /**
+     * Registers routes defined in the configuration.
+     *
+     * @param AppInterface $app The application instance.
+     */
+    private function registerConfiguredRoutes(AppInterface $app): void
+    {
+        $config = (array) ($this->config?->get(self::CONFIG_KEY) ?? []);
 
-            /**
-             * Basic Route Example:
-             */
-            $router->get('/_d1/', function (EventDispatcherInterface $eventDispatcher, TestEvent $testEvent) {
-                $eventDispatcher->dispatch($testEvent->with('X-Event', 'Dispatched from /_demo_/_d1_'));
-                return 'Hello, World from /_demo_/_d1_!';
-            });
+        if (empty($config)) {
+            return;
+        }
 
-            /**
-             * Psr-15 Handler Route Example:
-             * \Psr\Http\Server\RequestHandlerInterface
-             */
-            $router->get('/_d2/{id}', TestRequestHandler::class); 
+        $app(RouteConfigProcessor::class)->process($app(RouterInterface::class), $config);
+    }
 
+    /**
+     * Registers example routes for demonstration purposes.
+     *
+     * @param AppInterface $app The application instance.
+     */
+    private function registerExampleRoutes(AppInterface $app): void
+    {
+        // $router = $app(RouterInterface::class);
+        // $router->get('/_example/hello', function () {
+        //     return 'Hello, world!';
+        // });
 
-            $router->get('/_d3/', CallableRequestHandler::class)
-                
-            ;
-        })
-        ->withMiddleware(
-                    new class implements \Psr\Http\Server\MiddlewareInterface {
-                        public function process(\Psr\Http\Message\ServerRequestInterface $request, \Psr\Http\Server\RequestHandlerInterface $handler): \Psr\Http\Message\ResponseInterface
-                        {
-                            echo "Middleware for group \"_demo_\" executed.\n";
-                            return $handler->handle($request)
-                                ->withHeader('X-Demo-Middleware', 'This is a demo middleware for /_demo_/_d2_/');
-                        }
-                    }
-                )
-        
-        ;
+        // $router->group('/_example/api', function (RouterInterface $router) {
+        //     $router->get('/hello', function () {
+        //         return 'Hello from API!';
+        //     });
+        // });
     }
 }
