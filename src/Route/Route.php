@@ -12,6 +12,8 @@ use Juzdy\Http\Router\Route\RequestHandler\MiddlewareRequestHandler;
 use Juzdy\Http\Router\Route\RequestHandler\ResolvedRouteRequestHandler;
 use Juzdy\Http\Router\Contract\HasAttributes;
 use Juzdy\Http\Router\Attribute\WithMiddleware;
+use Juzdy\Http\Router\Request\SimpleRequestInterface;
+use Juzdy\Http\Router\Request\SimpleRequestMiddleware;
 use ReflectionAttribute;
 use ReflectionClass;
 use Stringable;
@@ -54,6 +56,7 @@ class Route implements RouteInterface
         private MiddlewareFactory $middlewareFactory,
         private ResponseFactoryInterface $responseFactory,
         private DiInvoker $invoker,
+        //private SimpleRequestInterface $simpleRequest,
     ) 
     {}
 
@@ -122,7 +125,13 @@ class Route implements RouteInterface
 
         $request = $this->mergeQueryParams($request);
 
-        return $this->processWithMiddleware($request);
+        /**
+         * Ensure the simple request middleware is always included to populate the simple request instance for handlers that depend on it, 
+         * even if not explicitly added as middleware on the route or handler. 
+         * This allows handlers to type-hint SimpleRequestInterface and have it available without requiring manual middleware configuration.
+         */
+        return $this->withMiddleware(SimpleRequestMiddleware::class)
+            ->processWithMiddleware($request);
     }
 
     /**
@@ -137,6 +146,11 @@ class Route implements RouteInterface
         return $this->createMiddlewarePipeline()->handle($request);
     }
 
+    /**
+     * Create a middleware pipeline that wraps the route handler with the configured middleware.
+     *
+     * @return RequestHandlerInterface The composed request handler that includes all middleware and the route handler.
+     */
     protected function createMiddlewarePipeline(): RequestHandlerInterface
     {
         return array_reduce(
@@ -176,7 +190,7 @@ class Route implements RouteInterface
         return new ResolvedRouteRequestHandler(
             $handler,
             $this->invoker,
-            fn (mixed $response): ResponseInterface => $this->normalizeResponse($response),
+            fn (ResponseInterface|Stringable|string $response): ResponseInterface => $this->normalizeResponse($response),
         );
     }
 

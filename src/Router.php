@@ -8,6 +8,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Juzdy\Config\ConfigInterface;
 use Juzdy\Container\Contract\Lifecycle\SharedInterface;
 use Juzdy\Http\Router\Exception\RuntimeException;
+use Juzdy\Http\Router\Request\SimpleRequestInterface;
 use Juzdy\Http\Router\Route\RouteFactory;
 use Juzdy\Http\Router\Route\RouteInterface;
 use Traversable;
@@ -36,7 +37,6 @@ class Router implements RouterInterface, SharedInterface
     public function __construct(
         private readonly ConfigInterface $config,
         private readonly RouteFactory $routeFactory,
-        //private readonly ShareManager $shareManager,
         private string $prefix = '',
     )
     {
@@ -56,20 +56,8 @@ class Router implements RouterInterface, SharedInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        //$this->prepareServerRequest($request);
-
         return $this->dispatch($request) ?? $this->dispatchGroups($request) ?? $handler->handle($request);
     }
-
-    /**
-     * Prepares the server request for route handling by sharing it in the container.
-     *
-     * @param ServerRequestInterface $request The server request to prepare
-     */
-    // protected function prepareServerRequest(ServerRequestInterface $request)
-    // {
-    //     $this->shareManager->share(RouteRequestInterface::class, $request);
-    // }
 
     /**
      * Registers a GET route with the specified path and handler.

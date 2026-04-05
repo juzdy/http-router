@@ -7,6 +7,8 @@ use Juzdy\Config\ConfigInterface;
 use Juzdy\Container\Binder\BindingManager;
 use Juzdy\Http\Router\Config\RouteConfigProcessor;
 use Juzdy\Http\Router\Event\RouterInitialized;
+use Juzdy\Http\Router\Request\SimpleRequest;
+use Juzdy\Http\Router\Request\SimpleRequestInterface;
 use Juzdy\Http\Router\Route\Route;
 use Juzdy\Http\Router\Route\RouteInterface;
 
@@ -50,7 +52,8 @@ class Package extends \Juzdy\App\PackageProvider\Package
         $app(BindingManager::class)
             ->bindMany([
                 RouterInterface::class => Router::class,
-                RouteInterface::class => Route::class
+                RouteInterface::class => Route::class,
+                SimpleRequestInterface::class => SimpleRequest::class,
             ]);
     }
 

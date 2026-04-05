@@ -2,11 +2,15 @@
 
 namespace Juzdy\Http\Router\Route;
 
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-interface RouteInterface extends RequestHandlerInterface
+interface RouteInterface //extends RequestHandlerInterface
 {
+    public function handle(ServerRequestInterface $request): ResponseInterface;
+
     /**
      * Determines if the given path matches the route's path pattern and HTTP method.
      * @param string $requestMethod The HTTP method of the incoming request to match against the route's method.
